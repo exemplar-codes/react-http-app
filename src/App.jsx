@@ -1,6 +1,7 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 
 import MoviesList from "./components/MoviesList";
+import AddMovie from "./components/AddMovie";
 import "./App.css";
 
 function App() {
@@ -8,66 +9,63 @@ function App() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  const [emptyMessage, setEmptyMessage] = useState(false);
-  const [wrongURLMessage, setWrongURLMessage] = useState(false);
-
-  async function fetchMoviesHandler() {
-    // clear errors, render loading message
+  const fetchMoviesHandler = useCallback(async () => {
     setIsLoading(true);
-    setError(false);
-
+    setError(null);
     try {
-      const response = await fetch(
-        "https://swapi.dev/api/film" + (wrongURLMessage ? "" : "s")
-      ); // correct end point is /films
-
-      if (!response.ok) throw new Error("HTTP error");
+      const response = await fetch("https://swapi.dev/api/films/");
+      if (!response.ok) {
+        throw new Error("Something went wrong!");
+      }
 
       const data = await response.json();
 
-      const transformedMovies = (emptyMessage ? [] : data.results).map(
-        (movieData) => {
-          return {
-            id: movieData.episode_id,
-            title: movieData.title,
-            openingText: movieData.opening_crawl,
-            releaseDate: movieData.release_date,
-          };
-        }
-      );
+      const transformedMovies = data.results.map((movieData) => {
+        return {
+          id: movieData.episode_id,
+          title: movieData.title,
+          openingText: movieData.opening_crawl,
+          releaseDate: movieData.release_date,
+        };
+      });
       setMovies(transformedMovies);
     } catch (error) {
-      setError(error);
-    } finally {
-      setIsLoading(false);
+      setError(error.message);
     }
+    setIsLoading(false);
+  }, []);
+
+  useEffect(() => {
+    fetchMoviesHandler();
+  }, [fetchMoviesHandler]);
+
+  function addMovieHandler(movie) {
+    console.log(movie);
   }
 
-  let content = <p>No movies found</p>;
-  if (!isLoading && !error) {
-    if (movies.length) content = <MoviesList movies={movies} />;
-  } else content = null;
+  let content = <p>Found no movies.</p>;
+
+  if (movies.length > 0) {
+    content = <MoviesList movies={movies} />;
+  }
+
+  if (error) {
+    content = <p>{error}</p>;
+  }
+
+  if (isLoading) {
+    content = <p>Loading...</p>;
+  }
 
   return (
     <React.Fragment>
       <section>
+        <AddMovie onAddMovie={addMovieHandler} />
+      </section>
+      <section>
         <button onClick={fetchMoviesHandler}>Fetch Movies</button>
       </section>
-      <section>
-        Using {!emptyMessage && "non-"}empty movie list &nbsp;
-        <button onClick={() => setEmptyMessage((prev) => !prev)}>Toggle</button>
-        <br />
-        <br />
-        Using {wrongURLMessage ? "wrong" : "correct"} URL &nbsp;
-        <button onClick={() => setWrongURLMessage((prev) => !prev)}>
-          Toggle
-        </button>
-      </section>
-      <section>
-        {isLoading && "Loading..."}
-        {error && error.toString()}
-        {content}
-      </section>
+      <section>{content}</section>
     </React.Fragment>
   );
 }
